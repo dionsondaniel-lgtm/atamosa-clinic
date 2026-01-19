@@ -1,0 +1,7 @@
+{
+  "name": "Atamosa Clinic",
+  "description": "State-of-the-art pediatric medical documentation automation.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
