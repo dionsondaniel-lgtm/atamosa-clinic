@@ -1,20 +1,29 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Atamosa Pediatric Care Platform
 
-# Run and deploy your AI Studio app
+**A Modern, Friendly Solution for Busy Clinics.** 🩺✨
 
-This contains everything you need to run your app locally.
+Welcome! This repository hosts the source code for the **Atamosa Clinic Management System**, a specialized software designed to help Pediatricians in the Philippines simplify their daily operations.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1MraqT24BhUP4SksKHrjC0BvE3m0sQrvC
+Unlike generic hospital software, this was built specifically to solve the headaches of private practice: crowded waiting rooms, lost patient cards, and late-night text inquiries.
 
-## Run Locally
+## 🌟 Why Doctors Love This
+*   **The "Quiet Lobby" System:** Real-time queueing means patients wait at home or in their car, not in your clinic.
+*   **Your AI Assistant:** Integrated Gemini AI helps double-check dosages and triage symptoms instantly.
+*   **Digital Secretary:** Reduces repetitive text messages by allowing parents to book slots directly.
+*   **Secure & Private:** Built with Supabase to ensure patient data stays safe and encrypted.
 
-**Prerequisites:**  Node.js
+## 🛠️ The Tech Behind It
+Built with the latest reliable web technologies:
+*   React & TypeScript (Fast & Bug-free)
+*   Supabase (Real-time Database)
+*   Google Gemini AI (Medical Assistance)
+*   Tailwind CSS (Clean, Modern UI)
 
+---
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 🤝 Commercial Use & Licensing
+This software is currently a **proprietary commercial product** developed by **[Daniel Dionson]**.
+
+It is not open-source. If you are interested in using this system for your clinic, or if you are a developer looking to collaborate, please reach out!
+
+**📩 Contact:** [dionsondaniel@gmail.com] | [09469741242]
