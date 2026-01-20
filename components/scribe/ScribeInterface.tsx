@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    Mic, Square, Save, Check, User, ChevronDown, FileText, 
-    Activity, Loader2, RefreshCw, Download, History, Search, X, Edit3, RotateCcw
+    Mic, Save, Check, User, ChevronDown, FileText, 
+    Activity, Loader2, RefreshCw, Download, History, Search, X, Edit3 
 } from 'lucide-react';
 import { useScribe } from '../../hooks/useScribe';
 import { Button } from '../ui/Button';
@@ -11,9 +11,9 @@ import { supabase } from '../../lib/supabase';
 import { Patient } from '../../types';
 
 export const ScribeInterface = () => {
-  const { isRecording, isGenerating, startRecording, stopRecording, transcript, soapNote } = useScribe();
+  const { isRecording, isGenerating, startRecording, stopRecording, transcript, soapNote, volume } = useScribe();
   
-  // Edit State for final review
+  // Edit State
   const [editableNote, setEditableNote] = useState({
     subjective: '',
     objective: '',
@@ -30,7 +30,7 @@ export const ScribeInterface = () => {
   const [pastNotes, setPastNotes] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Sync AI results to editable fields
+  // Sync AI results
   useEffect(() => {
     if (soapNote) {
       setEditableNote({
@@ -42,6 +42,7 @@ export const ScribeInterface = () => {
     }
   }, [soapNote]);
 
+  // Load Patients
   useEffect(() => {
     const fetchPatients = async () => {
         const { data } = await supabase.from('patients').select('*').order('name');
@@ -98,10 +99,13 @@ export const ScribeInterface = () => {
 
   const selectedPatientName = patients.find(p => p.id === selectedPatientId)?.name || "Select Patient";
 
+  // Visualizer Ring Scale
+  const ringScale = isRecording ? 1 + (volume / 100) : 1;
+
   return (
     <div className="flex flex-col h-full space-y-6 pb-40 md:pb-20 animate-in fade-in duration-500 overflow-y-auto no-scrollbar">
       
-      {/* Patient Selector & History Button */}
+      {/* Patient Selector */}
       <div className="flex flex-col sm:flex-row gap-3 justify-center z-30 sticky top-0 py-2 bg-background/80 backdrop-blur-sm px-4">
           <div className="relative w-full max-w-sm">
               <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} disabled={isRecording} className="flex items-center gap-3 w-full bg-card border border-border px-5 py-3 rounded-2xl shadow-sm justify-between transition-all">
@@ -135,23 +139,56 @@ export const ScribeInterface = () => {
 
       {/* Mic Area */}
       <div className="flex flex-col items-center justify-center min-h-[250px] rounded-[2.5rem] bg-gradient-to-b from-background to-muted/30 border p-8 text-center shadow-xl relative overflow-hidden">
+        
+        {/* Animated Rings */}
+        <div 
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-primary/5 rounded-full blur-3xl transition-transform duration-100"
+            style={{ transform: `translate(-50%, -50%) scale(${ringScale})` }}
+        />
+        
         <div className="relative mb-4">
-            <button disabled={isGenerating} className={cn("w-24 h-24 md:w-32 md:h-32 rounded-full relative z-10 flex items-center justify-center transition-all duration-300 shadow-2xl bg-card border-4", isRecording ? "border-primary scale-105" : "border-muted")} onClick={isRecording ? stopRecording : startRecording}>
-                {isGenerating ? <Loader2 className="w-10 h-10 text-primary animate-spin" /> : <Mic className={cn("w-8 h-8 md:w-12 md:h-12", isRecording ? "text-primary" : "text-muted-foreground")} />}
+            <button 
+                disabled={isGenerating} 
+                className={cn(
+                    "w-24 h-24 md:w-32 md:h-32 rounded-full relative z-10 flex items-center justify-center transition-all duration-300 shadow-2xl bg-card border-4", 
+                    isRecording ? "border-primary scale-110" : "border-muted"
+                )} 
+                onClick={isRecording ? stopRecording : startRecording}
+            >
+                {isGenerating ? (
+                    <Loader2 className="w-10 h-10 text-primary animate-spin" /> 
+                ) : (
+                    <Mic className={cn("w-8 h-8 md:w-12 md:h-12 transition-colors", isRecording ? "text-primary" : "text-muted-foreground")} />
+                )}
             </button>
         </div>
-        <div className="space-y-1 mb-6">
+        <div className="space-y-1 mb-6 relative z-10">
             <h2 className="text-xl font-bold">{isGenerating ? "Gemini is Writing..." : isRecording ? "Listening..." : "Scribe Consultation"}</h2>
-            <p className="text-muted-foreground text-[11px] max-w-xs mx-auto">AI supports English & Bisaya. You can edit the results below.</p>
+            <p className="text-muted-foreground text-[11px] max-w-xs mx-auto">
+                {isRecording ? "Speak clearly. Tap to finish." : "AI supports English & Bisaya. Tap mic to start."}
+            </p>
         </div>
-        {!isGenerating && <Button size="lg" variant={isRecording ? "destructive" : "default"} onClick={isRecording ? stopRecording : startRecording} className="rounded-full px-10 font-bold">{isRecording ? "Finish & Extract" : "Start Mic"}</Button>}
+        {!isGenerating && (
+            <Button 
+                size="lg" 
+                variant={isRecording ? "destructive" : "default"} 
+                onClick={isRecording ? stopRecording : startRecording} 
+                className="rounded-full px-10 font-bold relative z-10"
+            >
+                {isRecording ? "Finish & Extract" : "Start Mic"}
+            </Button>
+        )}
       </div>
 
       {/* Main Form Area */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-2">
         <Card className="flex flex-col h-[300px] bg-card/50 overflow-hidden rounded-3xl border-border/50">
-            <div className="p-4 border-b bg-muted/20 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"><Activity className="w-4 h-4 text-green-500" /> Live Transcript</div>
-            <div className="flex-1 p-5 overflow-y-auto font-mono text-[11px] leading-relaxed text-muted-foreground">{transcript || "Waiting for audio..."}</div>
+            <div className="p-4 border-b bg-muted/20 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                <Activity className="w-4 h-4 text-green-500" /> Live Transcript
+            </div>
+            <div className="flex-1 p-5 overflow-y-auto font-mono text-[11px] leading-relaxed text-muted-foreground">
+                {transcript || (isRecording ? "Listening for speech..." : "Waiting for audio...")}
+            </div>
         </Card>
 
         <Card className="flex flex-col h-auto border-primary/20 shadow-2xl rounded-3xl overflow-hidden">
@@ -204,7 +241,7 @@ export const ScribeInterface = () => {
         </Card>
       </div>
 
-      {/* History Modal - Fixed for Readability */}
+      {/* History Modal */}
       {isHistoryOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
             <Card className="w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl bg-card border border-border animate-in zoom-in-95">
@@ -213,7 +250,6 @@ export const ScribeInterface = () => {
                     <button onClick={() => setIsHistoryOpen(false)} className="p-2 hover:bg-muted rounded-full transition-colors"><X size={20}/></button>
                 </div>
                 
-                {/* Search Area - Fixed Contrast */}
                 <div className="p-3 border-b bg-card">
                     <div className="relative">
                         <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />

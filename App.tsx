@@ -18,22 +18,20 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null); 
   
-  // Start loading as true to hold the screen while Supabase checks local storage
+  // --- CRITICAL FIX: Start loading as TRUE ---
+  // This holds the screen until Supabase confirms if a user is logged in.
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Initial Session Check
+    // 1. Check for existing session immediately on load
     checkSession();
 
-    // 2. Real-time Auth Listener
+    // 2. Listen for auth changes (login/logout events)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
-        // If session exists but we haven't set the user yet, fetch role
-        if (!currentUser) {
-            await fetchUserRole(session.user.id, session.user);
-        }
+        if (!currentUser) await fetchUserRole(session.user.id, session.user);
       } else {
-        // No session means explicit logout or expired token
+        // Only reset if explicitly logged out or session expired
         setRole('none');
         setCurrentUser(null);
         setIsLoading(false);
@@ -47,9 +45,10 @@ const App: React.FC = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        // User found in local storage, restore their role
         await fetchUserRole(session.user.id, session.user);
       } else {
-        // No session found, stop loading and show Landing
+        // No user found, stop loading and show Landing
         setIsLoading(false);
       }
     } catch (error) {
@@ -60,30 +59,22 @@ const App: React.FC = () => {
 
   const fetchUserRole = async (userId: string, userObject: any) => {
     try {
-      // --- FIX: Use maybeSingle() instead of single() ---
-      // .single() throws an error if no doctor is found, causing the catch block to trigger logout.
-      // .maybeSingle() returns null gracefully if no doctor is found.
-      const { data: doctor, error } = await supabase
+      // Check if Doctor
+      const { data: doctor } = await supabase
         .from('doctors')
         .select('id')
         .eq('id', userId)
         .maybeSingle();
-
-      if (error) {
-         console.warn("Error checking doctor role:", error.message);
-         // Don't throw here; assume patient if doctor check fails but session is valid
-      }
 
       if (doctor) {
         setRole('doctor');
         setActiveTab('hub');
         setCurrentUser(userObject);
       } else {
-        // If not in doctors table, they are a Patient
+        // Assume Patient
         setRole('patient');
         setActiveTab('dashboard');
         
-        // Optional: Fetch extra patient details if needed
         const { data: patient } = await supabase
             .from('patients')
             .select('*')
@@ -93,12 +84,11 @@ const App: React.FC = () => {
         setCurrentUser(patient || userObject);
       }
     } catch (error) {
-      console.error("Critical error determining role:", error);
-      // Even if role check fails, do not logout if we have a valid userObject. 
-      // Default to patient to prevent redirect loop.
+      console.error("Role fetch error:", error);
       setRole('patient');
       setCurrentUser(userObject);
     } finally {
+      // --- CRITICAL: Stop loading once role is determined ---
       setIsLoading(false);
     }
   };
@@ -111,50 +101,15 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    setIsLoading(true);
     await supabase.auth.signOut();
     setRole('none');
     setCurrentUser(null);
     setActiveTab('hub');
+    setIsLoading(false);
   };
 
-  const renderContent = () => {
-    // DOCTOR ROUTES
-    if (role === 'doctor') {
-        switch (activeTab) {
-        case 'hub':
-            return <Dashboard onNavigate={setActiveTab} />;
-        case 'scribe':
-            return (
-                <div className="h-full animate-in zoom-in-95 duration-300">
-                    <ScribeInterface />
-                </div>
-            );
-        case 'messages':
-            return <DoctorInbox />;
-        case 'assistant':
-            return <DoctorAssistant />;
-        case 'patients':
-            return <PatientRepository />;
-        default:
-            return <Dashboard onNavigate={setActiveTab} />;
-        }
-    }
-
-    // PATIENT / PUBLIC ROUTES
-    if (role === 'patient' || role === 'public') {
-        return (
-            <PatientPortal 
-                section={activeTab} 
-                onNavigate={setActiveTab} 
-                user={currentUser} 
-            />
-        );
-    }
-
-    return null;
-  };
-
-  // --- Loading Screen ---
+  // --- RENDER: Loading Screen ---
   if (isLoading) {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
@@ -169,7 +124,7 @@ const App: React.FC = () => {
     );
   }
 
-  // --- Auth / Landing Routes ---
+  // --- RENDER: Auth / Landing ---
   if (role === 'none' || role === 'auth') {
       return (
           <>
@@ -178,7 +133,7 @@ const App: React.FC = () => {
                 <AuthPage 
                     onBack={() => setRole('none')}
                     onLoginSuccess={(user) => {
-                        // Immediately fetch role to transition UI smoothly
+                        setIsLoading(true); // Show loader while fetching role
                         fetchUserRole(user.id, user);
                     }}
                 />
@@ -186,13 +141,13 @@ const App: React.FC = () => {
             <AppearanceModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
              <button onClick={() => setIsSettingsOpen(true)} className="fixed top-4 right-4 p-2 rounded-full text-muted-foreground hover:bg-muted z-50">
                 <span className="sr-only">Settings</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
              </button>
           </>
       )
   }
 
-  // --- Main App Shell ---
+  // --- RENDER: Authenticated App ---
   return (
     <>
       <Shell 
@@ -203,7 +158,23 @@ const App: React.FC = () => {
         onLogout={handleLogout}
         user={currentUser}
       >
-        {renderContent()}
+        {role === 'doctor' && (
+            <>
+                {activeTab === 'hub' && <Dashboard onNavigate={setActiveTab} />}
+                {activeTab === 'scribe' && <ScribeInterface />}
+                {activeTab === 'messages' && <DoctorInbox />}
+                {activeTab === 'assistant' && <DoctorAssistant />}
+                {activeTab === 'patients' && <PatientRepository />}
+            </>
+        )}
+
+        {(role === 'patient' || role === 'public') && (
+            <PatientPortal 
+                section={activeTab} 
+                onNavigate={setActiveTab} 
+                user={currentUser} 
+            />
+        )}
       </Shell>
       <AppearanceModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </>
