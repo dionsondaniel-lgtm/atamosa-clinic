@@ -42,7 +42,7 @@ export const useScribe = () => {
   const [transcript, setTranscript] = useState('');
   const [soapNote, setSoapNote] = useState<SoapNote | null>(null);
   
-  // Simulated volume for visualizer (AudioContext is tricky on mobile with Speech API)
+  // Simulated volume for visualizer
   const [volume, setVolume] = useState(0); 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const volumeIntervalRef = useRef<number>();
@@ -63,10 +63,10 @@ export const useScribe = () => {
       const recognition = new SpeechRecognition();
       recognition.continuous = true; 
       recognition.interimResults = true; 
-      recognition.lang = 'en-US'; // We capture English/Phonetic, AI fixes it later
+      recognition.lang = 'en-US'; // Captures mixed input
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
-        // Robust transcript reconstruction
+        // Construct transcript from results
         const currentText = Array.from(event.results)
             .map(result => result[0].transcript)
             .join('');
@@ -76,7 +76,7 @@ export const useScribe = () => {
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error("Speech recognition error", event.error);
         if (event.error === 'not-allowed') {
-            alert("Microphone access denied. Check settings.");
+            alert("Microphone access denied. Please check your browser settings.");
             setIsRecording(false);
         }
       };
@@ -85,7 +85,7 @@ export const useScribe = () => {
       recognition.start();
       setIsRecording(true);
 
-      // Simulate volume for UI feedback
+      // Simulate volume for UI feedback (Visualizer)
       volumeIntervalRef.current = window.setInterval(() => {
         setVolume(Math.random() * 30 + 10);
       }, 100);
@@ -108,7 +108,7 @@ export const useScribe = () => {
 
     setIsRecording(false);
     
-    // Trigger AI Generation
+    // Trigger AI Generation if we have text
     if (transcript.length > 5) {
         setIsGenerating(true);
         try {
@@ -116,7 +116,7 @@ export const useScribe = () => {
             setSoapNote(note);
         } catch (e) {
             console.error("AI Generation Error", e);
-            alert("Failed to generate note. Try again.");
+            alert("Failed to generate note. Please try again.");
         } finally {
             setIsGenerating(false);
         }
